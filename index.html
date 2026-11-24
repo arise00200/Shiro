@@ -27,6 +27,7 @@
       --border-color: rgba(255, 255, 255, 0.07);
       --badge-boys: #3a7bd5;
       --badge-girls: #d65b7a;
+      --badge-mixed: #c9a961;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Tajawal", system-ui, sans-serif; }
@@ -549,6 +550,7 @@
 
     .badge-boys { background: var(--badge-boys); }
     .badge-girls { background: var(--badge-girls); }
+    .badge-mixed { background: var(--badge-mixed); color: #111; }
 
     .badge-member {
       position: absolute;
@@ -1269,6 +1271,7 @@
       <button class="filter-btn is-active" data-filter="all" role="tab" aria-selected="true" type="button">الكل</button>
       <button class="filter-btn" data-filter="boys" role="tab" aria-selected="false" type="button">شباب</button>
       <button class="filter-btn" data-filter="girls" role="tab" aria-selected="false" type="button">بنات</button>
+      <button class="filter-btn" data-filter="mixed" role="tab" aria-selected="false" type="button">مختلط</button>
     </div>
 
     <div class="guilds-grid" id="guildsGrid">
@@ -1445,7 +1448,7 @@
           <i class="fa-solid fa-chevron-down"></i>
         </button>
         <div class="faq-answer">
-          <p>نعم، عضوية النقابة محفوظة في متصفحك. عند رجوعك للموقع ستجد نقابتك الحالية كما هي دون الحاجة للانضمام من جديد.</p>
+          <p>نعم، يحفظ Firebase عضويتك لهذا المتصفح. لا تنتقل العضوية المجهولة تلقائيًا إذا حذفت بيانات المتصفح أو انتقلت لجهاز آخر.</p>
         </div>
       </div>
     </div>
@@ -1536,505 +1539,248 @@
     <p class="footer-jp">王国シロ · SHIRO NO ŌKOKU</p>
   </footer>
 
-  <script>
-    /* ============================================================
-       SAFE STORAGE
-    ============================================================ */
-    const store = {
-      get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-      set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { console.warn("localStorage write failed:", e); return false; } },
-      del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js';
+    import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js';
+    import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: 'AIzaSyBwJ7GA-QdHQy4lpg4lK9-oJavpnncI0jw',
+      authDomain: 'shiro-92841.firebaseapp.com',
+      projectId: 'shiro-92841',
+      storageBucket: 'shiro-92841.firebasestorage.app',
+      messagingSenderId: '713062165206',
+      appId: '1:713062165206:web:ce18c5eae36ec8dc0c7777',
+      measurementId: 'G-EE66YBQW34'
     };
 
-    /* ============================================================
-       DATA — روابط واتساب
-    ============================================================ */
-    const guildData = {
-      knights: {
-        title: "نقابة الفرسان", gender: "boys", genderLabel: "شباب",
-        cover: "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1200",
-        poster: "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=300",
-        members: 184, founded: "2022", posts: 145,
-        founder: {
-          name: "ياسر الحربي", title: "المؤسس والزعيم",
-          avatar: "https://ui-avatars.com/api/?name=Yasser&background=c9a961&color=0a0a0f&bold=true&size=96"
-        },
-        whatsapp: "https://chat.whatsapp.com/SHIROKnightsGroup",
-        desc: "تجمع شبابي هادئ يركز على النقاشات الممتعة لأنميات المغامرة والأكشن دون إزعاج أو تعصب.",
-        rules: "النقابة مخصصة للشباب فقط، وتعتمد الاحترام والهدوء أساساً في الحوار."
-      },
-      roses: {
-        title: "نقابة الزهرات", gender: "girls", genderLabel: "بنات",
-        cover: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=1200",
-        poster: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=300",
-        members: 212, founded: "2021", posts: 203,
-        founder: {
-          name: "نورة العتيبي", title: "المؤسسة والقائدة",
-          avatar: "https://ui-avatars.com/api/?name=Noura&background=d65b7a&color=fff&bold=true&size=96"
-        },
-        whatsapp: "https://chat.whatsapp.com/SHIHRosesGroup",
-        desc: "مجتمع محمي وخاص للبنات لمناقشة الأنمي، الرسوم، والاهتمامات المشتركة في بيئة آمنة تماماً.",
-        rules: "تقتصر العضوية على البنات فقط للحفاظ على الخصوصية والراحة."
-      },
-      manga: {
-        title: "نقابة قراء المانجا", gender: "boys", genderLabel: "شباب",
-        cover: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=1200",
-        poster: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=300",
-        members: 156, founded: "2020", posts: 312,
-        founder: {
-          name: "فهد القحطاني", title: "المؤسس ورئيس المحررين",
-          avatar: "https://ui-avatars.com/api/?name=Fahad&background=8a7cc3&color=fff&bold=true&size=96"
-        },
-        whatsapp: "https://chat.whatsapp.com/SHIROMangaGroup",
-        desc: "مساحة مخصصة لقراء المانجا والمانهوا لمتابعة الفصول والتحليلات في قنوات منظمة.",
-        rules: "مخصصة للشباب مع الالتزام التام بقوانين الحرق."
-      },
-      samurai: {
-        title: "نقابة الساموراي", gender: "boys", genderLabel: "شباب",
-        cover: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=1200",
-        poster: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=300",
-        members: 98, founded: "2023", posts: 87,
-        founder: {
-          name: "خالد المطيري", title: "المؤسس وقائد السيف",
-          avatar: "https://ui-avatars.com/api/?name=Khaled&background=3a7bd5&color=fff&bold=true&size=96"
-        },
-        whatsapp: "https://chat.whatsapp.com/SHIROSamuraiGroup",
-        desc: "تجمع متخصص لمحبي أنميات الساموراي والفترة الإيدو، تحليلات عميقة ونقاشات تاريخية راقية.",
-        rules: "مخصصة للشباب، مع الالتزام بالاحترام والابتعاد عن أي محتوى عنيف خارج سياق الأنمي."
-      },
-      detectives: {
-        title: "نقابة المحققين", gender: "boys", genderLabel: "شباب",
-        cover: "https://images.unsplash.com/photo-1554188248-986adbb73be4?w=1200",
-        poster: "https://images.unsplash.com/photo-1554188248-986adbb73be4?w=300",
-        members: 127, founded: "2022", posts: 176,
-        founder: {
-          name: "عبدالله الشهري", title: "المؤسس ورئيس التحقيق",
-          avatar: "https://ui-avatars.com/api/?name=Abdullah&background=c84b4b&color=fff&bold=true&size=96"
-        },
-        whatsapp: "https://chat.whatsapp.com/SHIRODetectivesGroup",
-        desc: "نقابة متخصصة في أنميات الغموض والتحقيق مثل Detective Conan وDeath Note، نقاشات ذكية بلا حرق.",
-        rules: "مخصصة للشباب، ويمنع حرق الأحداث الرئيسية قبل أسبوع من العرض."
-      },
-      moon: {
-        title: "نقابة القمر", gender: "girls", genderLabel: "بنات",
-        cover: "https://images.unsplash.com/photo-1522383225653-ed111181a951?w=1200",
-        poster: "https://images.unsplash.com/photo-1522383225653-ed111181a951?w=300",
-        members: 168, founded: "2021", posts: 154,
-        founder: {
-          name: "سارة الدوسري", title: "المؤسسة وقائدة القمر",
-          avatar: "https://ui-avatars.com/api/?name=Sara&background=d65b7a&color=fff&bold=true&size=96"
-        },
-        whatsapp: "https://chat.whatsapp.com/SHIROMoonGroup",
-        desc: "مساحة أنيقة تجمع البنات لمشاركة أنميات الرومانسية، الدراما، والقصة الجميلة في جو من الهدوء والتفاهم.",
-        rules: "تقتصر العضوية على البنات، مع احترام الذوق العام والابتعاد عن الحرق."
-      },
-      storytellers: {
-        title: "نقابة حكايات الليل", gender: "girls", genderLabel: "بنات",
-        cover: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=1200",
-        poster: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=300",
-        members: 143, founded: "2020", posts: 241,
-        founder: {
-          name: "ريم السبيعي", title: "المؤسسة وراوية الحكايات",
-          avatar: "https://ui-avatars.com/api/?name=Reem&background=8a7cc3&color=fff&bold=true&size=96"
-        },
-        whatsapp: "https://chat.whatsapp.com/SHIROStoryGroup",
-        desc: "مجتمع إبداعي للبنات يجمع الكاتبات وعاشقات القصص لمشاركة فان-فيكشن، مراجعات، وحكايات أنمي أصلية.",
-        rules: "مخصصة للبنات فقط، ويُمنع نشر محتوى غير لائق أو مسروق من كتّاب آخرين."
-      },
-      dreamers: {
-        title: "نقابة الحالمات", gender: "girls", genderLabel: "بنات",
-        cover: "https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=1200",
-        poster: "https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=300",
-        members: 176, founded: "2023", posts: 129,
-        founder: {
-          name: "لمى الغامدي", title: "المؤسسة وقائدة الأحلام",
-          avatar: "https://ui-avatars.com/api/?name=Lama&background=c9a961&color=0a0a0f&bold=true&size=96"
-        },
-        whatsapp: "https://chat.whatsapp.com/SHIRODreamersGroup",
-        desc: "تجمع راقٍ لعاشقات أنميات الفانتازيا والخيال العلمي، مع نقاشات هادئة وتوصيات أسبوعية مختارة.",
-        rules: "تقتصر على البنات، ويُلتزم بالاحترام التام وعدم إفساد الأحداث على الآخرين."
-      }
-    };
-
-    const STORAGE_KEY = "shiro_kingdom_joined_guild";
-
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
     const $ = (id) => document.getElementById(id);
+    const store = {
+      get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+      set(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } },
+      del(k) { try { localStorage.removeItem(k); } catch {} }
+    };
+    const STORAGE_KEY = 'shiro_kingdom_joined_guild';
 
-    const modal            = $("quietModal");
-    const modalClose       = $("modalClose");
-    const modalCover       = $("modalCover");
-    const mPoster          = $("mPoster");
-    const mTitle           = $("mTitle");
-    const mStats           = $("mStats");
-    const mBadge           = $("mBadge");
-    const mFounderAvatar   = $("mFounderAvatar");
-    const mFounderName     = $("mFounderName");
-    const mFounderTitle    = $("mFounderTitle");
-    const mDesc            = $("mDesc");
-    const mRules           = $("mRules");
-    const mJoinLinkBox     = $("mJoinLinkBox");
-    const mJoinLink        = $("mJoinLink");
-    const mStatusBox       = $("mStatusBox");
-    const mStatusText      = $("mStatusText");
-    const joinBtn          = $("joinBtn");
-    const leaveBtn         = $("leaveBtn");
-    const toastEl          = $("toast");
-    const membershipBanner = $("membershipBanner");
-    const memberGuildName  = $("memberGuildName");
-    const bannerLeaveBtn   = $("bannerLeaveBtn");
-    const guildsGrid       = $("guildsGrid");
+    const DEFAULT_GUILDS = {
+      knights:{title:'نقابة الفرسان',gender:'boys',cover:'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1200',poster:'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=300',members:184,founded:'2022',posts:145,founder:{name:'ياسر الحربي',title:'المؤسس والزعيم',avatar:'https://ui-avatars.com/api/?name=Yasser&background=c9a961&color=0a0a0f&bold=true&size=96'},whatsapp:'https://chat.whatsapp.com/SHIROKnightsGroup',desc:'تجمع شبابي هادئ يركز على النقاشات الممتعة لأنميات المغامرة والأكشن دون إزعاج أو تعصب.',rules:'النقابة مخصصة للشباب فقط، وتعتمد الاحترام والهدوء أساساً في الحوار.',active:true,sortOrder:1},
+      roses:{title:'نقابة الزهرات',gender:'girls',cover:'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=1200',poster:'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=300',members:212,founded:'2021',posts:203,founder:{name:'نورة العتيبي',title:'المؤسسة والقائدة',avatar:'https://ui-avatars.com/api/?name=Noura&background=d65b7a&color=fff&bold=true&size=96'},whatsapp:'https://chat.whatsapp.com/SHIHRosesGroup',desc:'مجتمع محمي وخاص للبنات لمناقشة الأنمي، الرسوم، والاهتمامات المشتركة في بيئة آمنة تماماً.',rules:'تقتصر العضوية على البنات فقط للحفاظ على الخصوصية والراحة.',active:true,sortOrder:2},
+      manga:{title:'نقابة قراء المانجا',gender:'boys',cover:'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=1200',poster:'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=300',members:156,founded:'2020',posts:312,founder:{name:'فهد القحطاني',title:'المؤسس ورئيس المحررين',avatar:'https://ui-avatars.com/api/?name=Fahad&background=8a7cc3&color=fff&bold=true&size=96'},whatsapp:'https://chat.whatsapp.com/SHIROMangaGroup',desc:'مساحة مخصصة لقراء المانجا والمانهوا لمتابعة الفصول والتحليلات في قنوات منظمة.',rules:'مخصصة للشباب مع الالتزام التام بقوانين الحرق.',active:true,sortOrder:3},
+      samurai:{title:'نقابة الساموراي',gender:'boys',cover:'https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=1200',poster:'https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=300',members:98,founded:'2023',posts:87,founder:{name:'خالد المطيري',title:'المؤسس وقائد السيف',avatar:'https://ui-avatars.com/api/?name=Khaled&background=3a7bd5&color=fff&bold=true&size=96'},whatsapp:'https://chat.whatsapp.com/SHIROSamuraiGroup',desc:'تجمع متخصص لمحبي أنميات الساموراي والفترة الإيدو، تحليلات عميقة ونقاشات تاريخية راقية.',rules:'مخصصة للشباب، مع الالتزام بالاحترام والابتعاد عن أي محتوى عنيف خارج سياق الأنمي.',active:true,sortOrder:4},
+      detectives:{title:'نقابة المحققين',gender:'boys',cover:'https://images.unsplash.com/photo-1554188248-986adbb73be4?w=1200',poster:'https://images.unsplash.com/photo-1554188248-986adbb73be4?w=300',members:127,founded:'2022',posts:176,founder:{name:'عبدالله الشهري',title:'المؤسس ورئيس التحقيق',avatar:'https://ui-avatars.com/api/?name=Abdullah&background=c84b4b&color=fff&bold=true&size=96'},whatsapp:'https://chat.whatsapp.com/SHIRODetectivesGroup',desc:'نقابة متخصصة في أنميات الغموض والتحقيق مثل Detective Conan وDeath Note، نقاشات ذكية بلا حرق.',rules:'مخصصة للشباب، ويمنع حرق الأحداث الرئيسية قبل أسبوع من العرض.',active:true,sortOrder:5},
+      moon:{title:'نقابة القمر',gender:'girls',cover:'https://images.unsplash.com/photo-1522383225653-ed111181a951?w=1200',poster:'https://images.unsplash.com/photo-1522383225653-ed111181a951?w=300',members:168,founded:'2021',posts:154,founder:{name:'سارة الدوسري',title:'المؤسسة وقائدة القمر',avatar:'https://ui-avatars.com/api/?name=Sara&background=d65b7a&color=fff&bold=true&size=96'},whatsapp:'https://chat.whatsapp.com/SHIROMoonGroup',desc:'مساحة أنيقة تجمع البنات لمشاركة أنميات الرومانسية، الدراما، والقصة الجميلة في جو من الهدوء والتفاهم.',rules:'تقتصر العضوية على البنات، مع احترام الذوق العام والابتعاد عن الحرق.',active:true,sortOrder:6},
+      storytellers:{title:'نقابة حكايات الليل',gender:'girls',cover:'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=1200',poster:'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=300',members:143,founded:'2020',posts:241,founder:{name:'ريم السبيعي',title:'المؤسسة وراوية الحكايات',avatar:'https://ui-avatars.com/api/?name=Reem&background=8a7cc3&color=fff&bold=true&size=96'},whatsapp:'https://chat.whatsapp.com/SHIROStoryGroup',desc:'مجتمع إبداعي للبنات يجمع الكاتبات وعاشقات القصص لمشاركة فان-فيكشن، مراجعات، وحكايات أنمي أصلية.',rules:'مخصصة للبنات فقط، ويُمنع نشر محتوى غير لائق أو مسروق من كتّاب آخرين.',active:true,sortOrder:7},
+      dreamers:{title:'نقابة الحالمات',gender:'girls',cover:'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=1200',poster:'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=300',members:176,founded:'2023',posts:129,founder:{name:'لمى الغامدي',title:'المؤسسة وقائدة الأحلام',avatar:'https://ui-avatars.com/api/?name=Lama&background=c9a961&color=0a0a0f&bold=true&size=96'},whatsapp:'https://chat.whatsapp.com/SHIRODreamersGroup',desc:'تجمع راقٍ لعاشقات أنميات الفانتازيا والخيال العلمي، مع نقاشات هادئة وتوصيات أسبوعية مختارة.',rules:'تقتصر على البنات، ويُلتزم بالاحترام التام وعدم إفساد الأحداث على الآخرين.',active:true,sortOrder:8}
+    };
+    const DEFAULT_CONTENT = {
+      heroTitle:'مملكة شيرو',heroSub:'SHIRO NO ŌKOKU · KINGDOM OF SHIRO',
+      heroDescription:'مملكة هادئة تجمع عشاق الأنمي الياباني في نقابات مستقلة ومحمية، تحت سماء بيضاء من الهدوء، الخصوصية، والاحترام المتبادل.',
+      membersTotal:1240,supportHours:24,foundedYear:2024,guildHeading:'نقابات المملكة (اضغط للتعريف والفرز)',
+      ctaTitle:'هل أنت مستعد للانضمام؟',ctaDescription:'اختر نقابتك وابدأ رحلتك في مملكة شيرو — مساحة بيضاء من الهدوء والأنمي.',
+      features:[
+        {title:'خصوصية تامة',description:'نقابات منفصلة ومحمية بضوابط صارمة تضمن لك الراحة الكاملة في الحوارات.',icon:'fa-shield-halved'},
+        {title:'تنظيم محكم',description:'قنوات منظمة، فرز واضح للفئات، وقوانين تحفظ النظام والاحترام.',icon:'fa-layer-group'},
+        {title:'بيئة هادئة',description:'مجتمع راقٍ بعيد عن التعصب والضوضاء، مكان للنقاش الجميل والهادف.',icon:'fa-feather'},
+        {title:'انتقاء دقيق',description:'عضوية مختارة بعناية، تجربة تجمع عشاق الأنمي الحقيقيين فقط.',icon:'fa-gem'}
+      ],
+      faqs:[
+        {question:'كيف أنضم لنقابة؟',answer:'اضغط على النقابة ثم زر الانضمام. سيُحفظ انضمامك في قاعدة بيانات المملكة، ويمكنك فتح رابط واتساب من النافذة.'},
+        {question:'هل يمكنني الانضمام لأكثر من نقابة؟',answer:'يمكنك الانضمام لنقابة واحدة فقط في الوقت نفسه. غادر نقابتك الحالية أولًا إذا أردت الانضمام لأخرى.'},
+        {question:'كيف أغادر نقابتي الحالية؟',answer:'افتح بطاقة نقابتك الحالية واضغط زر مغادرة هذه النقابة.'},
+        {question:'هل النقابات مختلطة؟',answer:'تظهر فئة كل نقابة بوضوح: شباب أو بنات أو مختلط.'},
+        {question:'هل عضويتي محفوظة إذا أغلقت الموقع؟',answer:'نعم، يحفظها Firebase لهذا المتصفح. إذا حذفت بيانات المتصفح أو انتقلت لجهاز آخر فلن تنتقل العضوية المجهولة تلقائيًا.'}
+      ],
+      rules:['احترام جميع الأعضاء والابتعاد عن التعصب أو الإساءة.','الحفاظ على خصوصية النقابات وعدم مشاركة المحتوى خارجها.','الالتزام بقوانين الحرق في نقاشات الأنمي والمانجا.','يمكنك الانضمام لنقابة واحدة فقط — اختر بعناية.','الهدوء في الحوار وعدم إثارة المشاكل داخل النقابات.']
+    };
 
+    let guildData = {...DEFAULT_GUILDS};
+    let siteContent = {...DEFAULT_CONTENT};
     let currentGuildId = null;
-    let lastFocused    = null;
-    let toastTimer     = null;
+    let lastFocused = null;
+    let toastTimer = null;
+    let currentUser = null;
+    let joinedGuildId = null;
+    let membershipReady = false;
+    let memberUnsubscribe = null;
+    let authStarting = false;
+    let receivedGuildSnapshot = false;
 
-    function getJoinedId() {
-      const id = store.get(STORAGE_KEY);
-      if (id && !guildData[id]) {
-        store.del(STORAGE_KEY);
-        return null;
-      }
-      return id;
+    const modal = $('quietModal');
+    const modalClose = $('modalClose');
+    const modalCover = $('modalCover');
+    const mPoster = $('mPoster');
+    const mTitle = $('mTitle');
+    const mStats = $('mStats');
+    const mBadge = $('mBadge');
+    const mFounderAvatar = $('mFounderAvatar');
+    const mFounderName = $('mFounderName');
+    const mFounderTitle = $('mFounderTitle');
+    const mDesc = $('mDesc');
+    const mRules = $('mRules');
+    const mJoinLinkBox = $('mJoinLinkBox');
+    const mJoinLink = $('mJoinLink');
+    const mStatusBox = $('mStatusBox');
+    const mStatusText = $('mStatusText');
+    const joinBtn = $('joinBtn');
+    const leaveBtn = $('leaveBtn');
+    const toastEl = $('toast');
+    const membershipBanner = $('membershipBanner');
+    const memberGuildName = $('memberGuildName');
+    const bannerLeaveBtn = $('bannerLeaveBtn');
+    const guildsGrid = $('guildsGrid');
+
+    function safeUrl(value='') {
+      try { const url = new URL(String(value)); return ['https:','http:'].includes(url.protocol) ? url.href : ''; }
+      catch { return ''; }
+    }
+    function escapeHtml(value='') {
+      return String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    }
+    function guildGenderLabel(gender) { return gender === 'girls' ? 'بنات' : gender === 'mixed' ? 'مختلط' : 'شباب'; }
+    function normalizeGuild(id, data={}) {
+      const gender = ['boys','girls','mixed'].includes(data.gender) ? data.gender : 'boys';
+      return {id,title:String(data.title||id),gender,genderLabel:data.genderLabel||guildGenderLabel(gender),cover:safeUrl(data.cover)||'',poster:safeUrl(data.poster)||safeUrl(data.cover)||'',members:Math.max(0,Number(data.members)||0),founded:String(data.founded||''),posts:Math.max(0,Number(data.posts)||0),founder:{name:String(data.founder?.name||''),title:String(data.founder?.title||''),avatar:safeUrl(data.founder?.avatar)||''},whatsapp:safeUrl(data.whatsapp)||'',desc:String(data.desc||''),rules:String(data.rules||''),active:data.active!==false,sortOrder:Number(data.sortOrder)||0};
+    }
+    function showToast(message) {
+      if (!toastEl) return;
+      toastEl.textContent = message;
+      toastEl.classList.add('is-visible');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove('is-visible'), 3500);
+    }
+    function getJoinedId() { return joinedGuildId && guildData[joinedGuildId] ? joinedGuildId : null; }
+    function setBackground(element, rawUrl) {
+      const url = safeUrl(rawUrl);
+      if (element) element.style.backgroundImage = url ? `url("${url.replace(/["\\]/g,'')}")` : 'none';
     }
 
+    function renderGuildCards() {
+      if (!guildsGrid) return;
+      const all = Object.entries(guildData).filter(([,g])=>g.active!==false).sort((a,b)=>(a[1].sortOrder||0)-(b[1].sortOrder||0));
+      guildsGrid.replaceChildren();
+      for (const [id,g] of all) {
+        const card=document.createElement('div');card.className='guild-card';card.dataset.id=id;card.tabIndex=0;card.setAttribute('role','button');card.setAttribute('aria-label',g.title);
+        const image=document.createElement('div');image.className='guild-img';setBackground(image,g.cover||g.poster);
+        const badge=document.createElement('span');badge.className=`badge-tag badge-${g.gender}`;badge.textContent=g.genderLabel;image.appendChild(badge);card.appendChild(image);
+        const body=document.createElement('div');body.className='guild-content';
+        const title=document.createElement('h3');title.textContent=g.title;
+        const meta=document.createElement('div');meta.className='guild-meta';meta.innerHTML='<i class="fa-solid fa-users"></i> <span></span>';meta.querySelector('span').textContent=`${g.members.toLocaleString('ar')} عضو`;
+        const desc=document.createElement('p');desc.textContent=g.desc;
+        const button=document.createElement('button');button.className='btn-details';button.type='button';button.tabIndex=-1;button.textContent='عرض التعريف بالنقابة';
+        body.append(title,meta,desc,button);card.appendChild(body);guildsGrid.appendChild(card);
+      }
+      refreshCards();
+      applyFilter(document.querySelector('.filter-btn.is-active')?.dataset.filter||'all');
+      updateStats();
+    }
     function refreshCards() {
-      const joinedId = getJoinedId();
-
-      document.querySelectorAll(".guild-card").forEach(card => {
-        const id = card.dataset.id;
-        const isMember = joinedId === id;
-        const isLocked = !!joinedId && !isMember;
-
-        card.classList.toggle("is-member", isMember);
-        card.classList.toggle("is-locked", isLocked);
-
-        const btn = card.querySelector(".btn-details");
-        if (btn) {
-          if (isMember) btn.textContent = "✓ أنت عضو في هذه النقابة";
-          else if (isLocked) btn.textContent = "🔒 عرض التفاصيل فقط";
-          else btn.textContent = "عرض التعريف بالنقابة";
-        }
-
-        const imgWrap = card.querySelector(".guild-img");
-        if (!imgWrap) return;
-
-        let memberBadge = imgWrap.querySelector(".badge-member");
-        if (isMember && !memberBadge) {
-          memberBadge = document.createElement("span");
-          memberBadge.className = "badge-member";
-          memberBadge.innerHTML = '<i class="fa-solid fa-check"></i> عضو';
-          imgWrap.appendChild(memberBadge);
-        } else if (!isMember && memberBadge) {
-          memberBadge.remove();
-        }
+      const memberId=getJoinedId();
+      document.querySelectorAll('.guild-card').forEach(card=>{
+        const id=card.dataset.id;const isMember=memberId===id;const isLocked=!!memberId&&!isMember;
+        card.classList.toggle('is-member',isMember);card.classList.toggle('is-locked',isLocked);
+        const button=card.querySelector('.btn-details');if(button)button.textContent=isMember?'✓ أنت عضو في هذه النقابة':isLocked?'🔒 عرض التفاصيل فقط':'عرض التعريف بالنقابة';
+        const image=card.querySelector('.guild-img');if(!image)return;
+        let stamp=image.querySelector('.badge-member');
+        if(isMember&&!stamp){stamp=document.createElement('span');stamp.className='badge-member';stamp.innerHTML='<i class="fa-solid fa-check"></i> عضو';image.appendChild(stamp)}else if(!isMember&&stamp)stamp.remove();
       });
-
-      const joinedGuild = joinedId ? guildData[joinedId] : null;
-      if (joinedGuild && membershipBanner && memberGuildName) {
-        memberGuildName.textContent = joinedGuild.title;
-        membershipBanner.classList.add("is-visible");
-      } else if (membershipBanner) {
-        membershipBanner.classList.remove("is-visible");
-      }
+      const joined=memberId?guildData[memberId]:null;
+      if(joined&&membershipBanner&&memberGuildName){memberGuildName.textContent=joined.title;membershipBanner.classList.add('is-visible')}else if(membershipBanner)membershipBanner.classList.remove('is-visible');
     }
-
     function applyFilter(filter) {
-      document.querySelectorAll(".guild-card").forEach(card => {
-        const id = card.dataset.id;
-        const guild = guildData[id];
-        if (!guild) return;
-        const match = filter === "all" || guild.gender === filter;
-        card.classList.toggle("is-hidden", !match);
-      });
+      document.querySelectorAll('.guild-card').forEach(card=>{const g=guildData[card.dataset.id];const matches=filter==='all'||g?.gender===filter;card.classList.toggle('is-hidden',!matches)});
+    }
+    function updateStats() {
+      const counters=document.querySelectorAll('.stat-number');
+      const activeGuilds=Object.values(guildData).filter(g=>g.active!==false);
+      const vals=[activeGuilds.length,Math.max(0,Number(siteContent.membersTotal)||0),Math.max(0,Number(siteContent.supportHours)||0),Math.max(0,Number(siteContent.foundedYear)||0)];
+      counters.forEach((el,i)=>{if(vals[i]!==undefined){el.dataset.count=String(vals[i]);el.textContent=Number(vals[i]).toLocaleString('ar')}});
+    }
+    function applySiteContent(content={}) {
+      siteContent={...DEFAULT_CONTENT,...content};
+      const heroTitle=document.querySelector('.hero-ar');if(heroTitle)heroTitle.textContent=siteContent.heroTitle||DEFAULT_CONTENT.heroTitle;
+      const heroSub=document.querySelector('.hero-sub');if(heroSub)heroSub.textContent=siteContent.heroSub||DEFAULT_CONTENT.heroSub;
+      const heroDesc=document.querySelector('.hero-desc');if(heroDesc)heroDesc.textContent=siteContent.heroDescription||DEFAULT_CONTENT.heroDescription;
+      const guildHeading=$('guilds');if(guildHeading){guildHeading.innerHTML='<i class="fa-solid fa-compass"></i> '+escapeHtml(siteContent.guildHeading||DEFAULT_CONTENT.guildHeading)}
+      const ctaTitle=document.querySelector('.cta-section h2');if(ctaTitle)ctaTitle.textContent=siteContent.ctaTitle||DEFAULT_CONTENT.ctaTitle;
+      const ctaDesc=document.querySelector('.cta-section p');if(ctaDesc)ctaDesc.textContent=siteContent.ctaDescription||DEFAULT_CONTENT.ctaDescription;
+      const featureGrid=document.querySelector('.features-grid');
+      if(featureGrid){featureGrid.replaceChildren();for(const feature of (Array.isArray(siteContent.features)?siteContent.features:[])){const card=document.createElement('div');card.className='feature-card';const icon=document.createElement('div');icon.className='feature-icon';const i=document.createElement('i');const iconName=String(feature.icon||'fa-star').replace(/[^a-z0-9-]/gi,'');i.className=`fa-solid ${iconName}`;icon.appendChild(i);const h=document.createElement('h3');h.textContent=feature.title||'';const p=document.createElement('p');p.textContent=feature.description||'';card.append(icon,h,p);featureGrid.appendChild(card)}}
+      const faqList=document.querySelector('.faq-list');
+      if(faqList){faqList.replaceChildren();for(const faq of (Array.isArray(siteContent.faqs)?siteContent.faqs:[])){const item=document.createElement('div');item.className='faq-item';const button=document.createElement('button');button.className='faq-question';button.type='button';button.append(document.createTextNode(faq.question||''));const icon=document.createElement('i');icon.className='fa-solid fa-chevron-down';button.appendChild(icon);const answer=document.createElement('div');answer.className='faq-answer';const p=document.createElement('p');p.textContent=faq.answer||'';answer.appendChild(p);item.append(button,answer);faqList.appendChild(item)}}
+      const rulesList=document.querySelector('.rules-box ul');if(rulesList){rulesList.replaceChildren();for(const rule of (Array.isArray(siteContent.rules)?siteContent.rules:[])){const li=document.createElement('li');li.textContent=rule;rulesList.appendChild(li)}}
+      updateStats();
+    }
+    function updateActiveNav() {
+      const sections=['hero','guilds','features','faq','rules'];const links=document.querySelectorAll('.nav-links a');const y=window.scrollY+160;let active='hero';
+      sections.forEach(id=>{const el=$(id);if(el&&el.offsetTop<=y)active=id});
+      links.forEach(link=>link.classList.toggle('active',link.getAttribute('href')===`#${active}`));
     }
 
     function openGuildModal(id) {
-      if (modal && modal.classList.contains("is-open") && currentGuildId === id) {
-        return;
-      }
+      const g=guildData[id];if(!g)return;
+      currentGuildId=id;lastFocused=document.activeElement;
+      setBackground(modalCover,g.cover);setBackground(mPoster,g.poster||g.cover);setBackground(mFounderAvatar,g.founder.avatar);
+      mTitle.textContent=g.title;mBadge.textContent=g.genderLabel;mBadge.className=`badge-tag badge-${g.gender}`;
+      mStats.replaceChildren();for(const [icon,text] of [['fa-users',`${g.members.toLocaleString('ar')} عضو`],['fa-calendar',`تأسست ${g.founded||'—'}`],['fa-comment-dots',`${g.posts.toLocaleString('ar')} منشور`]]){const span=document.createElement('span');const i=document.createElement('i');i.className=`fa-solid ${icon}`;span.append(i,document.createTextNode(' '+text));mStats.appendChild(span)}
+      mFounderName.textContent=g.founder.name;mFounderTitle.textContent=g.founder.title;mDesc.textContent=g.desc;mRules.textContent=g.rules;
+      const wa=safeUrl(g.whatsapp);mJoinLink.href=wa||'#';mJoinLinkBox.style.display=wa?'flex':'none';
+      updateModalMembership();modal.classList.add('is-open');modal.setAttribute('aria-hidden','false');document.body.classList.add('modal-open');if(modalClose)modalClose.focus();
+    }
+    function updateModalMembership() {
+      if(!currentGuildId)return;const joined=getJoinedId();mStatusBox.className='status-box';mStatusText.textContent='';joinBtn.disabled=false;joinBtn.style.display='block';leaveBtn.classList.remove('is-visible');mJoinLinkBox.classList.remove('is-locked');
+      if(!joined){joinBtn.textContent='الانضمام للنقابة';return}
+      if(joined===currentGuildId){joinBtn.textContent='✓ أنت عضو بالفعل';joinBtn.disabled=true;leaveBtn.classList.add('is-visible');mStatusBox.classList.add('is-visible','success');const ico=mStatusBox.querySelector('i');if(ico)ico.className='fa-solid fa-circle-check';mStatusText.textContent='أنت عضو في هذه النقابة. يمكنك مغادرتها للانضمام لنقابة أخرى.';return}
+      joinBtn.textContent='لا يمكنك الانضمام';joinBtn.disabled=true;mJoinLinkBox.classList.add('is-locked');mStatusBox.classList.add('is-visible','warn');const ico=mStatusBox.querySelector('i');if(ico)ico.className='fa-solid fa-lock';mStatusText.textContent=`أنت عضو بالفعل في ${guildData[joined]?.title||'نقابة أخرى'}؛ غادرها أولًا للانضمام إلى نقابة جديدة.`;
+    }
+    function closeGuildModal() {if(!modal)return;modal.classList.remove('is-open');modal.setAttribute('aria-hidden','true');document.body.classList.remove('modal-open');currentGuildId=null;if(lastFocused?.focus)lastFocused.focus()}
 
-      const g = guildData[id];
-      if (!g) { console.warn("Guild not found:", id); return; }
-
-      currentGuildId = id;
-      lastFocused = document.activeElement;
-
-      if (modalCover) modalCover.style.backgroundImage = `url('${g.cover}')`;
-      if (mPoster) mPoster.style.backgroundImage = `url('${g.poster}')`;
-
-      if (mTitle) mTitle.textContent = g.title;
-      if (mBadge) {
-        mBadge.textContent = g.genderLabel;
-        mBadge.className = `badge-tag badge-${g.gender}`;
-      }
-
-      if (mStats) {
-        mStats.innerHTML = `
-          <span><i class="fa-solid fa-users"></i> ${g.members} عضو</span>
-          <span><i class="fa-solid fa-calendar"></i> تأسست ${g.founded}</span>
-          <span><i class="fa-solid fa-comment-dots"></i> ${g.posts} منشور</span>
-        `;
-      }
-
-      if (mFounderAvatar) mFounderAvatar.style.backgroundImage = `url('${g.founder.avatar}')`;
-      if (mFounderName) mFounderName.textContent = g.founder.name;
-      if (mFounderTitle) mFounderTitle.textContent = g.founder.title;
-
-      if (mDesc) mDesc.textContent = g.desc;
-      if (mRules) mRules.textContent = g.rules;
-
-      if (mJoinLink) {
-        mJoinLink.href = g.whatsapp;
-        mJoinLink.textContent = "انضم عبر واتساب ↗";
-      }
-
-      const joinedId = getJoinedId();
-
-      if (mStatusBox) mStatusBox.className = "status-box";
-      if (mStatusText) mStatusText.textContent = "";
-      if (joinBtn) {
-        joinBtn.disabled = false;
-        joinBtn.style.display = "block";
-      }
-      if (leaveBtn) leaveBtn.classList.remove("is-visible");
-      if (mJoinLinkBox) mJoinLinkBox.classList.remove("is-locked");
-
-      if (!joinedId) {
-        if (joinBtn) joinBtn.textContent = "تقديم طلب الانضمام";
-      } else if (joinedId === id) {
-        if (joinBtn) {
-          joinBtn.textContent = "✓ أنت عضو بالفعل";
-          joinBtn.disabled = true;
-        }
-        if (leaveBtn) leaveBtn.classList.add("is-visible");
-        if (mStatusBox) {
-          mStatusBox.classList.add("is-visible", "success");
-          const ico = mStatusBox.querySelector("i");
-          if (ico) ico.className = "fa-solid fa-circle-check";
-        }
-        if (mStatusText) {
-          mStatusText.textContent = "أنت عضو في هذه النقابة. يمكنك مغادرتها للانضمام لنقابة أخرى.";
-        }
-      } else {
-        if (joinBtn) {
-          joinBtn.textContent = "لا يمكنك الانضمام";
-          joinBtn.disabled = true;
-        }
-        if (mJoinLinkBox) mJoinLinkBox.classList.add("is-locked");
-        if (mStatusBox) {
-          mStatusBox.classList.add("is-visible", "warn");
-          const ico = mStatusBox.querySelector("i");
-          if (ico) ico.className = "fa-solid fa-lock";
-        }
-        if (mStatusText) {
-          mStatusText.innerHTML =
-            `أنت منضم بالفعل إلى <strong style="color:#f0d79a">${guildData[joinedId].title}</strong>. ` +
-            `لا يمكنك الانضمام لأكثر من نقابة واحدة.`;
-        }
-      }
-
-      if (modal) {
-        modal.classList.add("is-open");
-        modal.setAttribute("aria-hidden", "false");
-      }
-      document.body.classList.add("modal-open");
-      if (modalClose) modalClose.focus();
+    async function joinCurrentGuild() {
+      if(!currentGuildId)return;if(!currentUser||!membershipReady){showToast('جارٍ تحميل حالة عضويتك من Firebase. حاول مرة أخرى بعد لحظة.');return}
+      const joined=getJoinedId();if(joined){if(joined===currentGuildId)showToast('أنت عضو بالفعل في هذه النقابة.');else showToast(`لا يمكنك — أنت عضو في ${guildData[joined]?.title||'نقابة أخرى'} بالفعل`);return}
+      joinBtn.disabled=true;
+      try{await setDoc(doc(db,'members',currentUser.uid),{uid:currentUser.uid,guildId:currentGuildId,joinedAt:serverTimestamp(),active:true});showToast(`تم تسجيل عضويتك في ${guildData[currentGuildId].title}.`);closeGuildModal()}
+      catch(error){joinBtn.disabled=false;console.error('Membership write failed:',error);showToast('تعذر حفظ العضوية في Firebase. تحقق من تفعيل Anonymous Authentication وقواعد members.')}
+    }
+    async function leaveMembership() {
+      const joined=getJoinedId();if(!joined||!currentUser)return;if(!confirm(`هل أنت متأكد من مغادرة ${guildData[joined].title}؟`))return;
+      try{await deleteDoc(doc(db,'members',currentUser.uid));showToast(`غادرت ${guildData[joined].title}. يمكنك الآن الانضمام لنقابة أخرى.`);if(modal.classList.contains('is-open'))updateModalMembership()}
+      catch(error){console.error('Membership delete failed:',error);showToast('تعذر تسجيل مغادرة النقابة. تحقق من قواعد Firebase.')}
     }
 
-    function closeGuildModal() {
-      if (!modal) return;
-      modal.classList.remove("is-open");
-      modal.setAttribute("aria-hidden", "true");
-      document.body.classList.remove("modal-open");
-      currentGuildId = null;
-      if (lastFocused && typeof lastFocused.focus === "function") {
-        lastFocused.focus();
-      }
-    }
+    if(guildsGrid){guildsGrid.addEventListener('click',event=>{const card=event.target.closest('.guild-card');if(card?.dataset.id)openGuildModal(card.dataset.id)});guildsGrid.addEventListener('keydown',event=>{if(event.key!=='Enter'&&event.key!==' ')return;const card=event.target.closest('.guild-card');if(card?.dataset.id){event.preventDefault();openGuildModal(card.dataset.id)}})}
+    if(modalClose)modalClose.addEventListener('click',closeGuildModal);
+    if(modal)modal.addEventListener('click',event=>{if(event.target===modal)closeGuildModal()});
+    document.addEventListener('keydown',event=>{if(event.key==='Escape'&&modal?.classList.contains('is-open'))closeGuildModal()});
+    if(joinBtn)joinBtn.addEventListener('click',joinCurrentGuild);
+    if(leaveBtn)leaveBtn.addEventListener('click',leaveMembership);
+    if(bannerLeaveBtn)bannerLeaveBtn.addEventListener('click',leaveMembership);
+    if(mJoinLink)mJoinLink.addEventListener('click',event=>{const joined=getJoinedId();if(joined&&joined!==currentGuildId){event.preventDefault();showToast(`أنت عضو في ${guildData[joined]?.title||'نقابة أخرى'} بالفعل.`);return}if(!joined&&currentGuildId){joinCurrentGuild().catch(console.error)}});
+    document.querySelectorAll('.filter-btn').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('.filter-btn').forEach(item=>{item.classList.remove('is-active');item.setAttribute('aria-selected','false')});button.classList.add('is-active');button.setAttribute('aria-selected','true');applyFilter(button.dataset.filter)}));
+    document.addEventListener('click',event=>{const button=event.target.closest('.faq-question');if(!button)return;const item=button.closest('.faq-item');const wasOpen=item.classList.contains('is-open');document.querySelectorAll('.faq-item.is-open').forEach(node=>node.classList.remove('is-open'));if(!wasOpen)item.classList.add('is-open')});
+    window.addEventListener('scroll',()=>requestAnimationFrame(updateActiveNav),{passive:true});
 
-    function showToast(msg) {
-      if (!toastEl) return;
-      toastEl.textContent = msg;
-      toastEl.classList.add("is-visible");
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => toastEl.classList.remove("is-visible"), 3000);
-    }
+    let guildSnapshotSeen=false;
+    onSnapshot(collection(db,'guilds'),snapshot=>{
+      if(snapshot.empty&&!guildSnapshotSeen){guildData={...DEFAULT_GUILDS};guildSnapshotSeen=true;renderGuildCards();return}
+      guildSnapshotSeen=true;const next={};snapshot.docs.forEach(item=>{next[item.id]=normalizeGuild(item.id,item.data())});guildData=next;renderGuildCards();
+      if(joinedGuildId&&!guildData[joinedGuildId]){joinedGuildId=null;refreshCards()}
+      if(currentGuildId&&guildData[currentGuildId])openGuildModal(currentGuildId);
+    },error=>{console.error('Guild listener:',error);showToast('تعذر تحميل بيانات النقابات من Firebase.');if(!guildSnapshotSeen){guildData={...DEFAULT_GUILDS};renderGuildCards()}});
 
-    function joinActiveGuild() {
-      if (!currentGuildId) return;
+    onSnapshot(doc(db,'siteContent','main'),snapshot=>{applySiteContent(snapshot.exists()?snapshot.data():DEFAULT_CONTENT)},error=>{console.error('Content listener:',error);applySiteContent(DEFAULT_CONTENT);showToast('تعذر تحميل نصوص الموقع من Firebase.')});
 
-      const joinedId = getJoinedId();
-      if (joinedId) {
-        if (joinedId === currentGuildId) {
-          showToast("أنت عضو بالفعل في هذه النقابة ✅");
-        } else {
-          showToast(`لا يمكنك — أنت عضو في ${guildData[joinedId].title} بالفعل`);
-        }
-        return;
-      }
-
-      store.set(STORAGE_KEY, currentGuildId);
-      showToast(`تم انضمامك إلى ${guildData[currentGuildId].title} بنجاح 🎉`);
-      refreshCards();
-      closeGuildModal();
-    }
-
-    function leaveActiveGuild() {
-      const joinedId = getJoinedId();
-      if (!joinedId) return;
-
-      if (!confirm(`هل أنت متأكد من مغادرة ${guildData[joinedId].title}؟`)) return;
-
-      store.del(STORAGE_KEY);
-      showToast(`غادرت ${guildData[joinedId].title}. يمكنك الآن الانضمام لنقابة أخرى.`);
-      refreshCards();
-
-      if (modal && modal.classList.contains("is-open") && currentGuildId) {
-        openGuildModal(currentGuildId);
-        if (modalClose) modalClose.focus();
-      }
-    }
-
-    function updateActiveNav() {
-      const spySections = ["hero", "guilds", "features", "faq", "rules"];
-      const navLinks = document.querySelectorAll(".nav-links a");
-      const scrollY = window.scrollY + 160;
-      let activeId = "hero";
-      spySections.forEach(id => {
-        const el = document.getElementById(id);
-        if (el && el.offsetTop <= scrollY) activeId = id;
-      });
-      navLinks.forEach(link => {
-        link.classList.toggle("active", link.getAttribute("href") === `#${activeId}`);
-      });
-    }
-
-    /* EVENT LISTENERS */
-    if (guildsGrid) {
-      guildsGrid.addEventListener("click", (e) => {
-        const card = e.target.closest(".guild-card");
-        if (card && card.dataset.id) openGuildModal(card.dataset.id);
-      });
-      guildsGrid.addEventListener("keydown", (e) => {
-        if (e.key !== "Enter" && e.key !== " ") return;
-        const card = e.target.closest(".guild-card");
-        if (card && card.dataset.id) {
-          e.preventDefault();
-          openGuildModal(card.dataset.id);
-        }
-      });
-    }
-
-    if (modalClose) modalClose.addEventListener("click", closeGuildModal);
-    if (modal) {
-      modal.addEventListener("click", (e) => {
-        if (e.target === modal) closeGuildModal();
-      });
-    }
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && modal && modal.classList.contains("is-open")) {
-        closeGuildModal();
-      }
+    onAuthStateChanged(auth,user=>{
+      if(!user){if(authStarting)return;authStarting=true;signInAnonymously(auth).catch(error=>{console.error('Anonymous Auth:',error);showToast('فعّل Anonymous في Firebase Authentication حتى تعمل العضوية.')}).finally(()=>{authStarting=false});return}
+      currentUser=user;membershipReady=false;if(memberUnsubscribe)memberUnsubscribe();
+      memberUnsubscribe=onSnapshot(doc(db,'members',user.uid),snapshot=>{joinedGuildId=snapshot.exists()&&snapshot.data().active!==false?String(snapshot.data().guildId||''):null;membershipReady=true;refreshCards();updateModalMembership()},error=>{console.error('Member listener:',error);showToast('تعذر قراءة حالة عضويتك من Firebase.')});
     });
 
-    if (joinBtn) joinBtn.addEventListener("click", joinActiveGuild);
-    if (leaveBtn) leaveBtn.addEventListener("click", leaveActiveGuild);
-    if (bannerLeaveBtn) bannerLeaveBtn.addEventListener("click", leaveActiveGuild);
-
-    if (mJoinLink) {
-      mJoinLink.addEventListener("click", (e) => {
-        const joinedId = getJoinedId();
-        if (!joinedId && currentGuildId) {
-          store.set(STORAGE_KEY, currentGuildId);
-          refreshCards();
-          showToast(`تم انضمامك إلى ${guildData[currentGuildId].title} — جاري فتح واتساب...`);
-        } else if (joinedId && joinedId !== currentGuildId) {
-          e.preventDefault();
-          showToast(`لا يمكنك — أنت عضو في ${guildData[joinedId].title} بالفعل`);
-        }
-      });
-    }
-
-    document.querySelectorAll(".filter-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".filter-btn").forEach(b => {
-          b.classList.remove("is-active");
-          b.setAttribute("aria-selected", "false");
-        });
-        btn.classList.add("is-active");
-        btn.setAttribute("aria-selected", "true");
-        applyFilter(btn.dataset.filter);
-      });
-    });
-
-    document.querySelectorAll(".faq-question").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const item = btn.closest(".faq-item");
-        const wasOpen = item.classList.contains("is-open");
-        document.querySelectorAll(".faq-item.is-open").forEach(i => i.classList.remove("is-open"));
-        if (!wasOpen) item.classList.add("is-open");
-      });
-    });
-
-    try {
-      refreshCards();
-      applyFilter("all");
-      updateActiveNav();
-    } catch (err) {
-      console.error("Init error:", err);
-    }
-
-    try {
-      const counters = document.querySelectorAll(".stat-number");
-      if (counters.length) {
-        if ("IntersectionObserver" in window) {
-          const counterObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-              if (!entry.isIntersecting) return;
-              const el = entry.target;
-              const target = parseInt(el.dataset.count, 10) || 0;
-              const start = parseInt(el.dataset.start || "0", 10);
-              const startT = performance.now();
-              const dur = 1500;
-
-              function tick(now) {
-                const elapsed = now - startT;
-                const progress = Math.min(elapsed / dur, 1);
-                const eased = 1 - Math.pow(1 - progress, 3);
-                el.textContent = Math.round(start + (target - start) * eased);
-                if (progress < 1) requestAnimationFrame(tick);
-              }
-              requestAnimationFrame(tick);
-              counterObserver.unobserve(el);
-            });
-          }, { threshold: 0.5 });
-          counters.forEach(c => counterObserver.observe(c));
-        } else {
-          counters.forEach(c => c.textContent = c.dataset.count);
-        }
-      }
-    } catch (err) {
-      console.error("Counter error:", err);
-    }
-
-    try {
-      let scrollTicking = false;
-      window.addEventListener("scroll", () => {
-        if (scrollTicking) return;
-        scrollTicking = true;
-        requestAnimationFrame(() => {
-          updateActiveNav();
-          scrollTicking = false;
-        });
-      }, { passive: true });
-    } catch (err) {
-      console.error("Scroll spy error:", err);
-    }
-
-    window.openGuildModal  = openGuildModal;
-    window.closeGuildModal = closeGuildModal;
-
-    console.log("✅ Shiro Kingdom initialized successfully — WhatsApp mode");
+    document.querySelectorAll('.faq-question').forEach(button=>button.addEventListener('click',()=>{const item=button.closest('.faq-item');const wasOpen=item.classList.contains('is-open');document.querySelectorAll('.faq-item.is-open').forEach(node=>node.classList.remove('is-open'));if(!wasOpen)item.classList.add('is-open')}));
+    applySiteContent(DEFAULT_CONTENT);renderGuildCards();updateActiveNav();
+    console.log('Shiro Kingdom connected to Firebase.');
   </script>
 
 </body>
