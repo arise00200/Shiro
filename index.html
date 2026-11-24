@@ -1276,7 +1276,7 @@
 
     <div class="guilds-grid" id="guildsGrid">
 
-      <div class="guild-card" data-id="knights" onclick="openGuildModal('knights')" tabindex="0" role="button" aria-label="نقابة الفرسان">
+      <div class="guild-card" data-id="knights" tabindex="0" role="button" aria-label="نقابة الفرسان">
         <div class="guild-img" style="background-image: url('https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600');">
           <span class="badge-tag badge-boys">شباب</span>
         </div>
@@ -1288,7 +1288,7 @@
         </div>
       </div>
 
-      <div class="guild-card" data-id="roses" onclick="openGuildModal('roses')" tabindex="0" role="button" aria-label="نقابة الزهرات">
+      <div class="guild-card" data-id="roses" tabindex="0" role="button" aria-label="نقابة الزهرات">
         <div class="guild-img" style="background-image: url('https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=600');">
           <span class="badge-tag badge-girls">بنات</span>
         </div>
@@ -1300,7 +1300,7 @@
         </div>
       </div>
 
-      <div class="guild-card" data-id="manga" onclick="openGuildModal('manga')" tabindex="0" role="button" aria-label="نقابة قراء المانجا">
+      <div class="guild-card" data-id="manga" tabindex="0" role="button" aria-label="نقابة قراء المانجا">
         <div class="guild-img" style="background-image: url('https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600');">
           <span class="badge-tag badge-boys">شباب</span>
         </div>
@@ -1312,7 +1312,7 @@
         </div>
       </div>
 
-      <div class="guild-card" data-id="samurai" onclick="openGuildModal('samurai')" tabindex="0" role="button" aria-label="نقابة الساموراي">
+      <div class="guild-card" data-id="samurai" tabindex="0" role="button" aria-label="نقابة الساموراي">
         <div class="guild-img" style="background-image: url('https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=600');">
           <span class="badge-tag badge-boys">شباب</span>
         </div>
@@ -1324,7 +1324,7 @@
         </div>
       </div>
 
-      <div class="guild-card" data-id="detectives" onclick="openGuildModal('detectives')" tabindex="0" role="button" aria-label="نقابة المحققين">
+      <div class="guild-card" data-id="detectives" tabindex="0" role="button" aria-label="نقابة المحققين">
         <div class="guild-img" style="background-image: url('https://images.unsplash.com/photo-1554188248-986adbb73be4?w=600');">
           <span class="badge-tag badge-boys">شباب</span>
         </div>
@@ -1336,7 +1336,7 @@
         </div>
       </div>
 
-      <div class="guild-card" data-id="moon" onclick="openGuildModal('moon')" tabindex="0" role="button" aria-label="نقابة القمر">
+      <div class="guild-card" data-id="moon" tabindex="0" role="button" aria-label="نقابة القمر">
         <div class="guild-img" style="background-image: url('https://images.unsplash.com/photo-1522383225653-ed111181a951?w=600');">
           <span class="badge-tag badge-girls">بنات</span>
         </div>
@@ -1348,7 +1348,7 @@
         </div>
       </div>
 
-      <div class="guild-card" data-id="storytellers" onclick="openGuildModal('storytellers')" tabindex="0" role="button" aria-label="نقابة حكايات الليل">
+      <div class="guild-card" data-id="storytellers" tabindex="0" role="button" aria-label="نقابة حكايات الليل">
         <div class="guild-img" style="background-image: url('https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=600');">
           <span class="badge-tag badge-girls">بنات</span>
         </div>
@@ -1360,7 +1360,7 @@
         </div>
       </div>
 
-      <div class="guild-card" data-id="dreamers" onclick="openGuildModal('dreamers')" tabindex="0" role="button" aria-label="نقابة الحالمات">
+      <div class="guild-card" data-id="dreamers" tabindex="0" role="button" aria-label="نقابة الحالمات">
         <div class="guild-img" style="background-image: url('https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=600');">
           <span class="badge-tag badge-girls">بنات</span>
         </div>
@@ -1604,6 +1604,7 @@
     let currentUser = null;
     let joinedGuildId = null;
     let membershipReady = false;
+    let membershipLoadError = false;
     let memberUnsubscribe = null;
     let authStarting = false;
     let receivedGuildSnapshot = false;
@@ -1738,7 +1739,7 @@
     function closeGuildModal() {if(!modal)return;modal.classList.remove('is-open');modal.setAttribute('aria-hidden','true');document.body.classList.remove('modal-open');currentGuildId=null;if(lastFocused?.focus)lastFocused.focus()}
 
     async function joinCurrentGuild() {
-      if(!currentGuildId)return;if(!currentUser||!membershipReady){showToast('جارٍ تحميل حالة عضويتك من Firebase. حاول مرة أخرى بعد لحظة.');return}
+      if(!currentGuildId)return;if(!currentUser){showToast('لم يبدأ تسجيل الدخول المجهول. تحقق من تفعيل Anonymous Authentication ونطاق الموقع في Firebase.');return}if(!membershipReady){showToast(membershipLoadError?'تعذر قراءة عضويتك من Firebase. تحقق من قواعد members ثم أعد تحميل الصفحة.':'جارٍ تحميل حالة عضويتك من Firebase. حاول مرة أخرى بعد لحظة.');return}
       const joined=getJoinedId();if(joined){if(joined===currentGuildId)showToast('أنت عضو بالفعل في هذه النقابة.');else showToast(`لا يمكنك — أنت عضو في ${guildData[joined]?.title||'نقابة أخرى'} بالفعل`);return}
       joinBtn.disabled=true;
       try{await setDoc(doc(db,'members',currentUser.uid),{uid:currentUser.uid,guildId:currentGuildId,joinedAt:serverTimestamp(),active:true});showToast(`تم تسجيل عضويتك في ${guildData[currentGuildId].title}.`);closeGuildModal()}
@@ -1757,7 +1758,7 @@
     if(joinBtn)joinBtn.addEventListener('click',joinCurrentGuild);
     if(leaveBtn)leaveBtn.addEventListener('click',leaveMembership);
     if(bannerLeaveBtn)bannerLeaveBtn.addEventListener('click',leaveMembership);
-    if(mJoinLink)mJoinLink.addEventListener('click',event=>{const joined=getJoinedId();if(joined&&joined!==currentGuildId){event.preventDefault();showToast(`أنت عضو في ${guildData[joined]?.title||'نقابة أخرى'} بالفعل.`);return}if(!joined&&currentGuildId){joinCurrentGuild().catch(console.error)}});
+    if(mJoinLink)mJoinLink.addEventListener('click',event=>{const joined=getJoinedId();if(!joined){event.preventDefault();showToast('سجّل عضويتك أولًا من زر الانضمام، ثم افتح رابط واتساب.');return}if(joined!==currentGuildId){event.preventDefault();showToast(`أنت عضو في ${guildData[joined]?.title||'نقابة أخرى'} بالفعل.`)}});
     document.querySelectorAll('.filter-btn').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('.filter-btn').forEach(item=>{item.classList.remove('is-active');item.setAttribute('aria-selected','false')});button.classList.add('is-active');button.setAttribute('aria-selected','true');applyFilter(button.dataset.filter)}));
     document.addEventListener('click',event=>{const button=event.target.closest('.faq-question');if(!button)return;const item=button.closest('.faq-item');const wasOpen=item.classList.contains('is-open');document.querySelectorAll('.faq-item.is-open').forEach(node=>node.classList.remove('is-open'));if(!wasOpen)item.classList.add('is-open')});
     window.addEventListener('scroll',()=>requestAnimationFrame(updateActiveNav),{passive:true});
@@ -1774,8 +1775,8 @@
 
     onAuthStateChanged(auth,user=>{
       if(!user){if(authStarting)return;authStarting=true;signInAnonymously(auth).catch(error=>{console.error('Anonymous Auth:',error);showToast('فعّل Anonymous في Firebase Authentication حتى تعمل العضوية.')}).finally(()=>{authStarting=false});return}
-      currentUser=user;membershipReady=false;if(memberUnsubscribe)memberUnsubscribe();
-      memberUnsubscribe=onSnapshot(doc(db,'members',user.uid),snapshot=>{joinedGuildId=snapshot.exists()&&snapshot.data().active!==false?String(snapshot.data().guildId||''):null;membershipReady=true;refreshCards();updateModalMembership()},error=>{console.error('Member listener:',error);showToast('تعذر قراءة حالة عضويتك من Firebase.')});
+      currentUser=user;membershipReady=false;membershipLoadError=false;if(memberUnsubscribe)memberUnsubscribe();
+      memberUnsubscribe=onSnapshot(doc(db,'members',user.uid),snapshot=>{joinedGuildId=snapshot.exists()&&snapshot.data().active!==false?String(snapshot.data().guildId||''):null;membershipReady=true;membershipLoadError=false;refreshCards();updateModalMembership()},error=>{membershipReady=false;membershipLoadError=true;console.error('Member listener:',error);showToast('تعذر قراءة حالة عضويتك. تحقق من قواعد members المنشورة في Firestore.')});
     });
 
     document.querySelectorAll('.faq-question').forEach(button=>button.addEventListener('click',()=>{const item=button.closest('.faq-item');const wasOpen=item.classList.contains('is-open');document.querySelectorAll('.faq-item.is-open').forEach(node=>node.classList.remove('is-open'));if(!wasOpen)item.classList.add('is-open')}));
